@@ -7,7 +7,10 @@ const initialForm = {
   character: "",
   background: "",
   clothes: "",
+  
   pose: "",
+  pose_preset_id: "",
+  
   extra_tags: "",
   user_negative: "",
   
@@ -63,9 +66,15 @@ function App() {
   
   const [lastPositivePrompt, setLastPositivePrompt] = useState("");
   const [lastNegativePrompt, setLastNegativePrompt] = useState("");
+  
+  const [posePresets, setPosePresets] = useState([]);
+  const [poseStatus, setPoseStatus] = useState("");
+  
+  const [lastPoseResult, setLastPoseResult] = useState(null);
 
   useEffect(() => {
     loadProfiles();
+	loadPosePresets();
   }, []);
 
 async function loadProfiles() {
@@ -90,6 +99,24 @@ async function loadProfiles() {
   } catch (requestError) {
     console.error(requestError);
     setProfileStatus(requestError.message);
+  }
+}
+
+async function loadPosePresets() {
+  try {
+    const response = await fetch(`${API_URL}/poses`);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.detail || "Не удалось загрузить пресеты поз.",
+      );
+    }
+
+    setPosePresets(result.poses || []);
+  } catch (requestError) {
+    console.error(requestError);
+    setPoseStatus(requestError.message);
   }
 }
 
@@ -275,6 +302,7 @@ async function loadProfiles() {
 			background: form.background,
 			clothes: form.clothes,
 			pose: form.pose,
+			pose_preset_id: form.pose_preset_id,
 			extra_tags: form.extra_tags,
 			user_negative: form.user_negative,
 			
@@ -309,6 +337,7 @@ async function loadProfiles() {
       setActualSeed(result.actual_seed ?? null);
       setGenerationTime(result.generation_time_seconds ?? null);
       setStatus("Генерация завершена");
+	  setLastPoseResult(result.pose_result || null);
     } catch (requestError) {
       console.error(requestError);
       setError(requestError.message);
@@ -327,6 +356,7 @@ async function loadProfiles() {
 	setLastPositivePrompt("");
 	setLastNegativePrompt("");
     setError("");
+	setLastPoseResult(null);
     setStatus("Настройки сброшены");
   }
 
@@ -435,7 +465,58 @@ async function loadProfiles() {
               <TextField label="Персонаж*" name="character" value={form.character} onChange={updateField} />
               <TextField label="Окружение" name="background" value={form.background} onChange={updateField} />
               <TextField label="Одежда" name="clothes" value={form.clothes} onChange={updateField} />
-              <TextField label="Поза" name="pose" value={form.pose} onChange={updateField} />
+			  { /*<TextField label="Поза" name="pose" value={form.pose} onChange={updateField} /> */ }
+			  <p className="field-hint">
+			  Ручное описание имеет приоритет над пресетом.
+			  Если оба поля пустые, программа сама выберет
+			  подходящую позу.
+			  </p>
+			  <div className="pose-fields">
+			  <label className="field">
+				<span>Найти пресет позы</span>
+
+				<input
+				  type="text"
+				  list="pose-preset-options"
+				  placeholder="Автоматически подобрать"
+				  value={
+					posePresets.find(
+					  (posePreset) =>
+						posePreset.id === form.pose_preset_id,
+					)?.name || ""
+				  }
+				  onChange={(event) => {
+					const matchedPose = posePresets.find(
+					  (posePreset) =>
+						posePreset.name === event.target.value,
+					);
+
+					setForm((previousForm) => ({
+					  ...previousForm,
+					  pose_preset_id: matchedPose?.id || "",
+					}));
+				  }}
+				/>
+
+				<datalist id="pose-preset-options">
+				  {posePresets.map((posePreset) => (
+					<option
+					  key={posePreset.id}
+					  value={posePreset.name}
+					>
+					  {posePreset.description}
+					</option>
+				  ))}
+				</datalist>
+			  </label>
+
+			  <TextField
+				label="Или описать позу вручную"
+				name="pose"
+				value={form.pose}
+				onChange={updateField}
+			  />
+			</div>
 			  <TextField label="Дополнительные теги" name="extra_tags" value={form.extra_tags} onChange={updateField} />
 			  <TextField label="Дополнительные негативные теги" name="user_negative" value={form.user_negative} onChange={updateField} />
             </section>
@@ -521,6 +602,20 @@ async function loadProfiles() {
 					<summary>Итоговый негативный промпт</summary>
 					<pre>{lastNegativePrompt}</pre>
 				  </details>
+				)}
+				
+				{lastPoseResult && (
+				  <div className="pose-result">
+					<strong>Использованная поза:</strong>{" "}
+
+					{lastPoseResult.source === "manual"
+					  ? "Ручное описание"
+					  : lastPoseResult.preset_name}
+
+					{lastPoseResult.source === "automatic" && (
+					  <span> — выбрана автоматически</span>
+					)}
+				  </div>
 				)}
 			  </div>
 			)}
