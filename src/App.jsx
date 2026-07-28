@@ -8,6 +8,8 @@ const initialForm = {
   background: "",
   clothes: "",
   
+  pose_mode: "automatic",
+  
   pose: "",
   pose_preset_id: "",
   
@@ -298,11 +300,15 @@ async function loadPosePresets() {
         },
         body: JSON.stringify({
 			profile_name: selectedProfile,
+			
 			character: form.character,
 			background: form.background,
 			clothes: form.clothes,
-			pose: form.pose,
-			pose_preset_id: form.pose_preset_id,
+			
+			pose_mode: form.pose_mode,
+			
+			pose: form.pose_mode === "manual" ? form.pose : "",
+			pose_preset_id: form.pose_mode === "preset" ? form.pose_preset_id : "",
 			extra_tags: form.extra_tags,
 			user_negative: form.user_negative,
 			
@@ -459,63 +465,86 @@ async function loadPosePresets() {
           {activeTab === "tags" && (
             <section className="panel-section">
               <h2>Теги</h2>
-
-              {/* <TextField label="Стандартные теги" name="standard_tags" value={form.standard_tags} onChange={updateField} /> */}
-			  {/* <TextField label="Негативные теги" name="negative_tags" value={form.negative_tags} onChange={updateField} /> */}
               <TextField label="Персонаж*" name="character" value={form.character} onChange={updateField} />
               <TextField label="Окружение" name="background" value={form.background} onChange={updateField} />
               <TextField label="Одежда" name="clothes" value={form.clothes} onChange={updateField} />
-			  { /*<TextField label="Поза" name="pose" value={form.pose} onChange={updateField} /> */ }
-			  <p className="field-hint">
-			  Ручное описание имеет приоритет над пресетом.
-			  Если оба поля пустые, программа сама выберет
-			  подходящую позу.
-			  </p>
-			  <div className="pose-fields">
+			  
 			  <label className="field">
-				<span>Найти пресет позы</span>
-
-				<input
-				  type="text"
-				  list="pose-preset-options"
-				  placeholder="Автоматически подобрать"
-				  value={
-					posePresets.find(
-					  (posePreset) =>
-						posePreset.id === form.pose_preset_id,
-					)?.name || ""
-				  }
-				  onChange={(event) => {
-					const matchedPose = posePresets.find(
-					  (posePreset) =>
-						posePreset.name === event.target.value,
-					);
-
-					setForm((previousForm) => ({
-					  ...previousForm,
-					  pose_preset_id: matchedPose?.id || "",
-					}));
-				  }}
-				/>
-
-				<datalist id="pose-preset-options">
-				  {posePresets.map((posePreset) => (
-					<option
-					  key={posePreset.id}
-					  value={posePreset.name}
-					>
-					  {posePreset.description}
-					</option>
-				  ))}
-				</datalist>
+				  <span>Способ выбора позы</span>
+				  <select name="pose_mode" value={form.pose_mode} onChange={updateField}>
+					<option value="automatic"> Подобрать автоматически </option>
+					<option value="preset"> Выбрать пресет </option>
+					<option value="manual"> Описать вручную </option>
+					<option value="free"> Не использовать описание позы </option>
+				  </select>
 			  </label>
+			  
+			  
 
+			  <div className="pose-fields">
+			  
+			  {form.pose_mode === "preset" && (
+				  <label className="field">
+					<span>Найти пресет позы</span>
+
+					<input
+					  type="text"
+					  list="pose-preset-options"
+					  placeholder="Автоматически подобрать"
+					  value={
+						posePresets.find(
+						  (posePreset) =>
+							posePreset.id === form.pose_preset_id,
+						)?.name || ""
+					  }
+					  onChange={(event) => {
+						const matchedPose = posePresets.find(
+						  (posePreset) =>
+							posePreset.name === event.target.value,
+						);
+
+						setForm((previousForm) => ({
+						  ...previousForm,
+						  pose_preset_id: matchedPose?.id || "",
+						}));
+					  }}
+					/>
+
+					<datalist id="pose-preset-options">
+					  {posePresets.map((posePreset) => (
+						<option
+						  key={posePreset.id}
+						  value={posePreset.name}
+						>
+						  {posePreset.description}
+						</option>
+					  ))}
+					</datalist>
+				  </label>
+			  )}
+
+			{form.pose_mode === "manual" && (
 			  <TextField
-				label="Или описать позу вручную"
+				label="Описать позу вручную"
 				name="pose"
 				value={form.pose}
 				onChange={updateField}
 			  />
+			)}
+			
+			{form.pose_mode === "automatic" && (
+				<p className="field-hint">
+				Программа автоматически выберет подходящий пресет позы.
+				</p>
+			)}
+			
+			{form.pose_mode === "free" && (
+				<p className="field-hint">
+				В промпт не будет добавлено никаких указаний на позу.
+				Нейросеть сама определит композицию изображения.
+				</p>
+			)}
+			  
 			</div>
 			  <TextField label="Дополнительные теги" name="extra_tags" value={form.extra_tags} onChange={updateField} />
 			  <TextField label="Дополнительные негативные теги" name="user_negative" value={form.user_negative} onChange={updateField} />
