@@ -282,9 +282,21 @@ async function loadPosePresets() {
 		  type === "checkbox"
 			? checked
 			: type === "number"
-			  ? Number(value)
+			  ? value
 			  : value,
 	  }));
+	}
+	
+	function finishNumberEdit(event) {
+		const { name, value } = event.target;
+
+		setForm((previousForm) => ({
+			...previousForm,
+			[name]:
+				value === ""
+					? 0
+					: Number(value),
+		}));
 	}
 
   async function generateImage() {
@@ -557,8 +569,8 @@ async function loadPosePresets() {
                 <h2>Основные настройки</h2>
 
                 <div className="form-grid">
-                  <NumberField label="Ширина" name="width" value={form.width} onChange={updateField} min={64} max={2048} />
-                  <NumberField label="Высота" name="height" value={form.height} onChange={updateField} min={64} max={2048} />
+                  <NumberField label="Ширина" name="width" value={form.width} onChange={updateField} onFinishEdit={finishNumberEdit} min={64} max={4096} />
+                  <NumberField label="Высота" name="height" value={form.height} onChange={updateField} onFinishEdit={finishNumberEdit} min={64} max={4096} />
                   <NumberField label="Steps" name="steps" value={form.steps} onChange={updateField} min={1} max={150} />
                   <NumberField label="CFG" name="cfg" value={form.cfg} onChange={updateField} min={1} max={30} step={0.5} />
                   <NumberField label="Seed" name="seed" value={form.seed} onChange={updateField} />
@@ -685,11 +697,37 @@ function TextField({ label, name, value, onChange }) {
   );
 }
 
-function NumberField({ label, name, value, onChange, min, max, step = 1 }) {
+function NumberField({
+  label,
+  name,
+  value,
+  onChange,
+  onFinishEdit,
+  min,
+  max,
+  step = 1,
+}) {
+  function handleKeyDown(event) {
+    if (event.key === "Enter") {
+      event.currentTarget.blur();
+    }
+  }
+
   return (
     <label className="field">
       <span>{label}</span>
-      <input type="number" name={name} value={value} onChange={onChange} min={min} max={max} step={step} />
+
+      <input
+        type="number"
+        name={name}
+        value={value}
+        onChange={onChange}
+        onBlur={onFinishEdit}
+        onKeyDown={handleKeyDown}
+        min={min}
+        max={max}
+        step={step}
+      />
     </label>
   );
 }
