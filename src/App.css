@@ -259,3 +259,100 @@ button {
   gap: 9px;
   text-align: center;
 }
+
+.prompt-details {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.final-prompt {
+  position: relative;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+  padding: 10px 42px 10px 10px;
+  box-sizing: border-box;
+}
+
+.final-prompt-text {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.copy-prompt-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+
+  width: 30px;
+  height: 30px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #f1f1f1;
+  background: #3a3d44;
+  border: 1px solid #555962;
+  border-radius: 6px;
+
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.copy-prompt-button:hover {
+  background: #4a4e57;
+  border-color: #6a6f7a;
+}
+
+.copy-prompt-button:active {
+  transform: scale(0.92);
+}
+
+.copy-prompt-button.copied {
+  background: #454b47;
+  border-color: #68716b;
+}
+
+.copy-icon {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.copy-icon::before,
+.copy-icon::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.copy-icon::before {
+  left: 1px;
+  top: 4px;
+}
+
+.copy-icon::after {
+  left: 4px;
+  top: 1px;
+}
+
+.check-icon {
+  display: block;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 700;
+}

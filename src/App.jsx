@@ -47,6 +47,8 @@ const PROFILE_FIELDS = [
 function App() {
   const [activeTab, setActiveTab] = useState("tags");
   const [form, setForm] = useState(initialForm);
+  
+  const [copiedPrompt, setCopiedPrompt] = useState(null);
 
   const [profiles, setProfiles] = useState({});
   const [selectedProfile, setSelectedProfile] = useState("");
@@ -329,6 +331,24 @@ async function loadProfiles() {
     setError("");
     setStatus("Настройки сброшены");
   }
+  
+async function copyPrompt(text, promptType) {
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+
+    setCopiedPrompt(promptType);
+
+    setTimeout(() => {
+      setCopiedPrompt((current) =>
+        current === promptType ? null : current
+      );
+    }, 2000);
+  } catch (copyError) {
+    console.error("Не удалось скопировать промпт:", copyError);
+  }
+}
 
   function showPreviousImage() {
     if (images.length < 2) return;
@@ -509,19 +529,65 @@ async function loadProfiles() {
 			  <div className="prompt-preview">
 				<h3>Параметры последней генерации</h3>
 
-				{lastPositivePrompt && (
-				  <details>
-					<summary>Итоговый промпт</summary>
-					<pre>{lastPositivePrompt}</pre>
-				  </details>
-				)}
+<details className="prompt-details" open>
+  <summary>Итоговый промпт</summary>
 
-				{lastNegativePrompt && (
-				  <details>
-					<summary>Итоговый негативный промпт</summary>
-					<pre>{lastNegativePrompt}</pre>
-				  </details>
-				)}
+  <div className="final-prompt">
+<button
+  type="button"
+  className={`copy-prompt-button ${
+    copiedPrompt === "positive" ? "copied" : ""
+  }`}
+  onClick={() => copyPrompt(lastPositivePrompt, "positive")}
+  title={
+    copiedPrompt === "positive"
+      ? "Скопировано"
+      : "Скопировать промпт"
+  }
+  aria-label="Скопировать промпт"
+>
+  {copiedPrompt === "positive" ? (
+    <span className="check-icon">✓</span>
+  ) : (
+    <span className="copy-icon" />
+  )}
+</button>
+
+    <div className="final-prompt-text">
+      {lastPositivePrompt || "—"}
+    </div>
+  </div>
+</details>
+
+<details className="prompt-details" open>
+  <summary>Итоговый негативный промпт</summary>
+
+  <div className="final-prompt">
+<button
+  type="button"
+  className={`copy-prompt-button ${
+    copiedPrompt === "negative" ? "copied" : ""
+  }`}
+  onClick={() => copyPrompt(lastNegativePrompt, "negative")}
+  title={
+    copiedPrompt === "negative"
+      ? "Скопировано"
+      : "Скопировать негативный промпт"
+  }
+  aria-label="Скопировать негативный промпт"
+>
+  {copiedPrompt === "negative" ? (
+    <span className="check-icon">✓</span>
+  ) : (
+    <span className="copy-icon" />
+  )}
+</button>
+
+    <div className="final-prompt-text">
+      {lastNegativePrompt || "—"}
+    </div>
+  </div>
+</details>
 			  </div>
 			)}
 
