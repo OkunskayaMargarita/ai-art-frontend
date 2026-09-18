@@ -7,7 +7,9 @@ const initialForm = {
   character: "",
   background: "",
   clothes: "",
+  pose_mode: "free",
   pose: "",
+  pose_preset_id: "",
   extra_tags: "",
   user_negative: "",
   
@@ -48,6 +50,8 @@ function App() {
   const [activeTab, setActiveTab] = useState("tags");
   const [form, setForm] = useState(initialForm);
   
+  const [posePresets, setPosePresets] = useState([]);
+  
   const [copiedPrompt, setCopiedPrompt] = useState(null);
 
   const [profiles, setProfiles] = useState({});
@@ -68,7 +72,28 @@ function App() {
 
   useEffect(() => {
     loadProfiles();
+	loadPosePresets();
   }, []);
+  
+async function loadPosePresets() {
+  try {
+    const response = await fetch(`${API_URL}/poses`);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.detail || "Не удалось загрузить пресеты поз.",
+      );
+    }
+
+    setPosePresets(result.poses || []);
+  } catch (requestError) {
+    console.error(
+      "Не удалось загрузить пресеты поз:",
+      requestError,
+    );
+  }
+}
 
 async function loadProfiles() {
   try {
@@ -276,7 +301,14 @@ async function loadProfiles() {
 			character: form.character,
 			background: form.background,
 			clothes: form.clothes,
-			pose: form.pose,
+
+			pose_mode: form.pose_mode,
+			pose: form.pose_mode === "manual" ? form.pose : "",
+			pose_preset_id:
+			  form.pose_mode === "preset"
+				? form.pose_preset_id
+				: "",
+
 			extra_tags: form.extra_tags,
 			user_negative: form.user_negative,
 			
@@ -455,7 +487,46 @@ async function copyPrompt(text, promptType) {
               <TextField label="Персонаж*" name="character" value={form.character} onChange={updateField} />
               <TextField label="Окружение" name="background" value={form.background} onChange={updateField} />
               <TextField label="Одежда" name="clothes" value={form.clothes} onChange={updateField} />
-              <TextField label="Поза" name="pose" value={form.pose} onChange={updateField} />
+              <SelectField
+			  label="Поза"
+				  name="pose_mode"
+				  value={form.pose_mode}
+				  onChange={updateField}
+				  options={[
+					{ value: "free", label: "Без описания позы" },
+					{ value: "automatic", label: "Случайная поза" },
+					{ value: "preset", label: "Выбрать пресет" },
+					{ value: "manual", label: "Своя поза" },
+				  ]}
+				/>
+
+				{form.pose_mode === "preset" && (
+				  <label className="field">
+					<span>Пресет позы</span>
+					<select
+					  name="pose_preset_id"
+					  value={form.pose_preset_id}
+					  onChange={updateField}
+					>
+					  <option value="">Выберите позу</option>
+
+					  {posePresets.map((preset) => (
+						<option key={preset.id} value={preset.id}>
+						  {preset.name || preset.id}
+						</option>
+					  ))}
+					</select>
+				  </label>
+				)}
+
+				{form.pose_mode === "manual" && (
+				  <TextField
+					label="Описание позы"
+					name="pose"
+					value={form.pose}
+					onChange={updateField}
+				  />
+				)}
 			  <TextField label="Дополнительные теги" name="extra_tags" value={form.extra_tags} onChange={updateField} />
 			  <TextField label="Дополнительные негативные теги" name="user_negative" value={form.user_negative} onChange={updateField} />
             </section>
@@ -636,16 +707,36 @@ function NumberField({ label, name, value, onChange, min, max, step = 1 }) {
   );
 }
 
-function SelectField({ label, name, value, onChange, options }) {
+function SelectField({label,name,value,onChange,options,}) {
   return (
     <label className="field">
       <span>{label}</span>
-      <select name={name} value={value} onChange={onChange}>
-        {options.map((option) => (
-          <option value={option} key={option}>
-            {option}
-          </option>
-        ))}
+
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+      >
+        {options.map((option) => {
+          const optionValue =
+            typeof option === "string"
+              ? option
+              : option.value;
+
+          const optionLabel =
+            typeof option === "string"
+              ? option
+              : option.label;
+
+          return (
+            <option
+              value={optionValue}
+              key={optionValue}
+            >
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
     </label>
   );
