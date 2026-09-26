@@ -125,6 +125,38 @@ function App() {
     clearInterval(timer);
   };
 }, [isGenerating]);
+
+useEffect(() => {
+function handleGlobalKeyDown(event) {
+  if (
+    event.key !== "Enter" ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.shiftKey ||
+    event.metaKey
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (!isGenerating) {
+    generateImage();
+  }
+}
+
+  window.addEventListener(
+    "keydown",
+    handleGlobalKeyDown
+  );
+
+  return () => {
+    window.removeEventListener(
+      "keydown",
+      handleGlobalKeyDown
+    );
+  };
+}, [isGenerating, form, selectedProfile]);
   
 async function loadPosePresets() {
   try {
@@ -223,7 +255,7 @@ async function loadProfiles() {
 			? checked
 			: type === "number"
 			  ? Number(value)
-			  : value,
+			  : value.replace(/[\r\n]+/g, " "),
 	  }));
 	}
 
@@ -738,7 +770,13 @@ function TextField({ label, name, value, onChange }) {
   return (
     <label className="field">
       <span>{label}</span>
-      <textarea name={name} value={value} onChange={onChange} rows={2} />
+
+      <input
+        type="text"
+        name={name}
+        value={value}
+        onChange={onChange}
+      />
     </label>
   );
 }
