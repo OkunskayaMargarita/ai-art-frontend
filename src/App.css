@@ -356,3 +356,54 @@ button {
   line-height: 1;
   font-weight: 700;
 }
+
+.generation-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.generation-estimate span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.generation-estimate strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.generation-progress {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.generation-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.generation-progress-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.generation-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width 0.4s ease;
+}
+
+.generation-stopping-message {
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.75;
+}

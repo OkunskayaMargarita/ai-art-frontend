@@ -36,6 +36,34 @@ const initialForm = {
   use_character_reference: false,
 };
 
+function formatGenerationTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "";
+  }
+
+  const roundedSeconds = Math.ceil(seconds);
+
+  if (roundedSeconds < 60) {
+    return `${roundedSeconds} сек.`;
+  }
+
+  const hours = Math.floor(roundedSeconds / 3600);
+  const minutes = Math.floor(
+    (roundedSeconds % 3600) / 60
+  );
+  const remainingSeconds = roundedSeconds % 60;
+
+  if (hours > 0) {
+    return minutes > 0
+      ? `${hours} ч. ${minutes} мин.`
+      : `${hours} ч.`;
+  }
+
+  return remainingSeconds > 0
+    ? `${minutes} мин. ${remainingSeconds} сек.`
+    : `${minutes} мин.`;
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState("tags");
   const [form, setForm] = useState(initialForm);
@@ -53,9 +81,19 @@ function App() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [actualSeed, setActualSeed] = useState(null);
   const [generationTime, setGenerationTime] = useState(null);
+  
+  const [averageImageTime, setAverageImageTime] = useState(() => {
+	const saved = localStorage.getItem(
+    "averageImageGenerationTime"
+  );
+
+  return saved ? Number(saved) : null;
+});
 
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [isStopping, setIsStopping] = useState(false);
   
   const [lastPositivePrompt, setLastPositivePrompt] = useState("");
   const [lastNegativePrompt, setLastNegativePrompt] = useState("");
@@ -65,6 +103,28 @@ function App() {
 	loadPosePresets();
 	loadStyles();
   }, []);
+  
+  useEffect(() => {
+  if (!isGenerating) {
+    return;
+  }
+
+  const startedAt = Date.now();
+
+  setElapsedTime(0);
+
+  const timer = setInterval(() => {
+    const elapsedSeconds = Math.floor(
+      (Date.now() - startedAt) / 1000
+    );
+
+    setElapsedTime(elapsedSeconds);
+  }, 1000);
+
+  return () => {
+    clearInterval(timer);
+  };
+}, [isGenerating]);
   
 async function loadPosePresets() {
   try {
@@ -168,6 +228,7 @@ async function loadProfiles() {
 	}
 
   async function generateImage() {
+	setIsStopping(false);
     setIsGenerating(true);
     setError("");
 
@@ -200,8 +261,8 @@ async function loadProfiles() {
 			cfg: form.cfg,
 			seed: form.seed,
 			clip_skip: form.clip_skip,
-			batch_size: form.batch_size,
-			batch_count: form.batch_count,
+			batch_size: 1,
+			batch_count: Number(form.batch_count) || 1,
 			hires_enabled: form.hires_enabled,
 			hires_steps: form.hires_steps,
 			hires_scale: form.hires_scale,
@@ -224,13 +285,49 @@ async function loadProfiles() {
       setCurrentImageIndex(0);
       setActualSeed(result.actual_seed ?? null);
       setGenerationTime(result.generation_time_seconds ?? null);
+	  const generatedCount = result.images?.length || 0;
+		const totalTime = result.generation_time_seconds;
+
+		if (generatedCount > 0 && totalTime > 0) {
+		  const timePerImage = totalTime / generatedCount;
+
+		  setAverageImageTime(timePerImage);
+
+		  localStorage.setItem(
+			"averageImageGenerationTime",
+			String(timePerImage)
+		  );
+		}
     } catch (requestError) {
       console.error(requestError);
       setError(requestError.message);
     } finally {
       setIsGenerating(false);
+	  setIsStopping(false);
     }
   }
+  
+	async function stopGeneration() {
+	  try {
+		const response = await fetch(
+		  `${API_URL}/generate/stop`,
+		  {
+			method: "POST",
+		  },
+		);
+
+		if (!response.ok) {
+		  throw new Error(
+			"Не удалось остановить генерацию.",
+		  );
+		}
+
+		setIsStopping(true);
+	  } catch (requestError) {
+		console.error(requestError);
+		setError(requestError.message);
+	  }
+	}
 
   function resetForm() {
     setForm(initialForm);
@@ -260,6 +357,28 @@ async function copyPrompt(text, promptType) {
     console.error("Не удалось скопировать промпт:", copyError);
   }
 }
+
+  const imageCount = Math.max(
+    1,
+    Number(form.batch_count) || 1
+  );
+
+  const estimatedGenerationTime =
+    averageImageTime !== null
+      ? averageImageTime * imageCount
+      : null;
+	  
+	  const generationProgress =
+		  isGenerating &&
+		  estimatedGenerationTime !== null &&
+		  estimatedGenerationTime > 0
+			? Math.min(
+				99,
+				Math.floor(
+				  (elapsedTime / estimatedGenerationTime) * 100
+				)
+			  )
+			: 0;
 
   const currentImage = images[currentImageIndex];
 
@@ -381,23 +500,123 @@ async function copyPrompt(text, promptType) {
                   <NumberField label="Steps" name="steps" value={form.steps} onChange={updateField} min={1} max={150} />
                   <NumberField label="CFG" name="cfg" value={form.cfg} onChange={updateField} min={1} max={30} step={0.5} />
                   <NumberField label="Seed" name="seed" value={form.seed} onChange={updateField} />
-
-                  <NumberField label="Batch size" name="batch_size" value={form.batch_size} onChange={updateField} min={1} max={8} />
-                  <NumberField label="Batch count" name="batch_count" value={form.batch_count} onChange={updateField} min={1} max={20} />
                 </div>
 
               </section>
             </>
           )}
 
-          <div className="button-row">
-            <button type="button" className="primary-button" onClick={generateImage} disabled={isGenerating}>
-              {isGenerating ? "Генерация..." : "Сгенерировать"}
-            </button>
-            <button type="button" className="secondary-button" onClick={resetForm} disabled={isGenerating}>
-              Сбросить
-            </button>
-          </div>
+          <div className="generation-actions">
+			  <label className="generation-count">
+				<span>Количество</span>
+
+				<input
+				  type="number"
+				  min="1"
+				  step="1"
+				  value={form.batch_count}
+				  disabled={isGenerating}
+				  onChange={(event) => {
+					const value = event.target.value;
+
+					if (value === "") {
+					  setForm((current) => ({
+						...current,
+						batch_count: "",
+					  }));
+					  return;
+					}
+
+					const number = Math.floor(Number(value));
+
+					if (number >= 1) {
+					  setForm((current) => ({
+						...current,
+						batch_count: number,
+					  }));
+					}
+				  }}
+				  onBlur={() => {
+					if (!form.batch_count || form.batch_count < 1) {
+					  setForm((current) => ({
+						...current,
+						batch_count: 1,
+					  }));
+					}
+				  }}
+				/>
+			  </label>
+
+			  {!isGenerating ? (
+				<button
+				  type="button"
+				  onClick={generateImage}
+				>
+				  Сгенерировать
+				</button>
+			  ) : (
+				<button
+				  type="button"
+				  onClick={stopGeneration}
+				  disabled={isStopping}
+				>
+				  {isStopping
+					? "Останавливается..."
+					: "Прервать"}
+				</button>
+			  )}
+
+			  <button
+				type="button"
+				onClick={resetForm}
+				disabled={isGenerating}
+			  >
+				Сбросить
+			  </button>
+			</div>
+			
+			{isGenerating && (
+			  <div className="generation-progress">
+				<div className="generation-progress-info">
+				  <span>
+				  Прошло: {formatGenerationTime(elapsedTime)}
+
+				  {estimatedGenerationTime !== null && (
+					<>
+					  {" • "}
+					  примерно{" "}
+					  {formatGenerationTime(
+						estimatedGenerationTime
+					  )}
+					</>
+				  )}
+				</span>
+
+				  <span>
+					{estimatedGenerationTime !== null
+					  ? `${generationProgress}%`
+					  : "Выполняется..."}
+				  </span>
+				</div>
+
+				<div className="generation-progress-track">
+				  <div
+					className="generation-progress-fill"
+					style={{
+					  width:
+						estimatedGenerationTime !== null
+						  ? `${generationProgress}%`
+						  : "0%",
+					}}
+				  />
+				</div>
+				{isStopping && (
+				  <div className="generation-stopping-message">
+					Генерация будет остановлена после завершения текущего изображения
+				  </div>
+				)}
+			  </div>
+			)}
 
           {error && <div className="error-box">{error}</div>}
         </div>
