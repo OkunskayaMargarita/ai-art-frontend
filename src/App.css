@@ -407,3 +407,28 @@ button {
   font-size: 13px;
   opacity: 0.75;
 }
+
+.pose-preset-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pose-preset-section > button {
+  align-self: flex-start;
+}
+
+.pose-override-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pose-override-editor > button {
+  align-self: flex-start;
+}
+
+.pose-override-hint {
+  font-size: 12px;
+  opacity: 0.65;
+}

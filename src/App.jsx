@@ -71,6 +71,10 @@ function App() {
   const [posePresets, setPosePresets] = useState([]);
   const [styles, setStyles] = useState([]);
   
+  const [poseEditorOpen, setPoseEditorOpen] = useState(false);
+  const [poseOverride, setPoseOverride] = useState("");
+  const [isResolvingPose, setIsResolvingPose] = useState(false);
+  
   const [copiedPrompt, setCopiedPrompt] = useState(null);
 
   const [profiles, setProfiles] = useState({});
@@ -178,6 +182,52 @@ async function loadPosePresets() {
   }
 }
 
+async function openPoseEditor() {
+  if (!form.pose_preset_id) {
+    return;
+  }
+
+  setIsResolvingPose(true);
+  setError("");
+
+  try {
+    const response = await fetch(
+      `${API_URL}/poses/resolve`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pose_preset_id: form.pose_preset_id,
+        }),
+      },
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.detail ||
+          "Не удалось подготовить позу для редактирования.",
+      );
+    }
+
+    setPoseOverride(result.prompt || "");
+    setPoseEditorOpen(true);
+  } catch (requestError) {
+    console.error(requestError);
+    setError(requestError.message);
+  } finally {
+    setIsResolvingPose(false);
+  }
+}
+
+function resetPoseOverride() {
+  setPoseOverride("");
+  setPoseEditorOpen(false);
+}
+
 async function loadStyles() {
   try {
     const response = await fetch(`${API_URL}/styles`);
@@ -248,6 +298,14 @@ async function loadProfiles() {
 	function updateField(event) {
 	  const { name, value, type, checked } = event.target;
 
+	  if (
+		name === "pose_mode" ||
+		name === "pose_preset_id"
+	  ) {
+		setPoseOverride("");
+		setPoseEditorOpen(false);
+	  }
+
 	  setForm((previousForm) => ({
 		...previousForm,
 		[name]:
@@ -282,6 +340,11 @@ async function loadProfiles() {
 			pose_preset_id:
 			  form.pose_mode === "preset"
 				? form.pose_preset_id
+				: "",
+				
+			pose_override:
+			  form.pose_mode === "preset"
+				? poseOverride
 				: "",
 
 			extra_tags: form.extra_tags,
@@ -363,6 +426,8 @@ async function loadProfiles() {
 
   function resetForm() {
     setForm(initialForm);
+	setPoseOverride("");
+	setPoseEditorOpen(false);
     setImages([]);
     setCurrentImageIndex(0);
     setActualSeed(null);
@@ -490,22 +555,70 @@ async function copyPrompt(text, promptType) {
 				/>
 
 				{form.pose_mode === "preset" && (
-				  <label className="field">
-					<span>Пресет позы</span>
-					<select
-					  name="pose_preset_id"
-					  value={form.pose_preset_id}
-					  onChange={updateField}
-					>
-					  <option value="">Выберите позу</option>
+				  <div className="pose-preset-section">
+					<label className="field">
+					  <span>Пресет позы</span>
 
-					  {posePresets.map((preset) => (
-						<option key={preset.id} value={preset.id}>
-						  {preset.name || preset.id}
-						</option>
-					  ))}
-					</select>
-				  </label>
+					  <select
+						name="pose_preset_id"
+						value={form.pose_preset_id}
+						onChange={updateField}
+					  >
+						<option value="">Выберите позу</option>
+
+						{posePresets.map((preset) => (
+						  <option
+							key={preset.id}
+							value={preset.id}
+						  >
+							{preset.name || preset.id}
+						  </option>
+						))}
+					  </select>
+					</label>
+
+					{form.pose_preset_id && !poseEditorOpen && (
+					  <button
+						type="button"
+						onClick={openPoseEditor}
+						disabled={isResolvingPose || isGenerating}
+					  >
+						{isResolvingPose
+						  ? "Подготовка..."
+						  : "Редактировать"}
+					  </button>
+					)}
+
+					{poseEditorOpen && (
+					  <div className="pose-override-editor">
+						<TextField
+						  label="Временная версия позы"
+						  name="pose_override"
+						  value={poseOverride}
+						  onChange={(event) => {
+							setPoseOverride(
+							  event.target.value.replace(
+								/[\r\n]+/g,
+								" ",
+							  ),
+							);
+						  }}
+						/>
+
+						<button
+						  type="button"
+						  onClick={resetPoseOverride}
+						  disabled={isGenerating}
+						>
+						  Сбросить изменения
+						</button>
+
+						<span className="pose-override-hint">
+						  Изменения временные и не изменяют сам пресет.
+						</span>
+					  </div>
+					)}
+				  </div>
 				)}
 
 				{form.pose_mode === "manual" && (
